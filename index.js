@@ -28,12 +28,19 @@ class Mail {
     /**
      * Creates a new email with a specified subject.
      * 
-     * @param {String} subject E-mail subject.
+     * @param {String} subject Email subject, optionally you can ignore this 
+     *  argument, just set the `config`, and set the subject in the config.
      * 
      * @param {Object} config Transport configurations for Nodemailer, may 
-     *  carry a `from` property sets the from address.
+     *  carry a `from` property sets the from address, and a `to` property 
+     *  sets a receiver or receivers, and an optional `subject` if you don't 
+     *  pass it as an argument.
      */
     constructor(subject, config = null) {
+        if (typeof subject === "object") {
+            config = subject;
+            subject = config.subject;
+        }
         config = Object.assign(Config, config);
         if (config.pool) {
             var url = getUrl(config);
@@ -53,6 +60,11 @@ class Mail {
             text: "",
             html: "",
             attchments: [],
+        };
+        if (config.to instanceof Array) {
+            this.message.to = config.to;
+        } else if (typeof config.to === "string") {
+            this.message.to = [config.to];
         }
     }
 
@@ -157,16 +169,15 @@ class Mail {
     /**
      * Sends the email to all recipients.
      * 
-     * @return {Promise} Returns a Promise, and the only argument passed to 
-     *  the callback of `then()` is an object which may carry these 
-     *  information:
+     * @return {Promise} Returns a Promise, the only argument passed to the 
+     * callback of `then()` is an object which may carry information like:
      *  - `messageId` the final Message-Id value;
      *  - `envelope` the envelope object for the message;
      *  - `accepted` recipient addresses that were accepted by the server;
      *  - `rejected` recipient addresses that were rejected by the server;
      *  - `pending` recipient addresses that were temporarily rejected;
      *      together with the server response;
-     *  - `response` the last SMTP response from the server. 
+     *  - `response` the last SMTP response from the server.
      */
     send() {
         var message = {};
