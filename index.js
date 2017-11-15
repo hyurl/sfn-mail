@@ -34,7 +34,7 @@ class Mail {
      *  carry a `from` property sets the from address.
      */
     constructor(subject, config = null) {
-        config = Object.assign(Config, config || Config);
+        config = Object.assign(Config, config);
         if (config.pool) {
             var url = getUrl(config);
             if (!Pool[url]) {
@@ -46,7 +46,7 @@ class Mail {
         }
         this.message = {
             subject,
-            from: Config.from || Config.auth.user,
+            from: config.from || config.auth.user,
             to: [],
             cc: [],
             bcc: [],

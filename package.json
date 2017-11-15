@@ -1,6 +1,6 @@
 {
     "name": "sfn-mail",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "description": "Simple Friendly Node.js Email client for sending messages.",
     "main": "index.js",
     "scripts": {
