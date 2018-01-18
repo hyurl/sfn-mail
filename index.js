@@ -1,24 +1,33 @@
 const Nodemailer = require("nodemailer");
-const Pool = {};
-var Config = {
+
+var TransportOptions = {
     host: "",
     port: 25,
+    subject: "",
     from: "",
+    headers: {},
+    secure: false,
+    pool: false,
     auth: {
-        user: "",
-        pass: "",
+        username: "",
+        password: ""
     }
-};
+}
 
-function getUrl(config) {
-    var url = config.secure ? "smtps://" : "smtp://";
-    if (config.auth && config.auth.user) {
-        url += config.auth.user;
-        if (config.auth.pass)
-            url += ":" + config.auth.pass;
+function getUrl(options) {
+    var url = options.secure ? "smtps://" : "smtp://";
+    var auth = options.auth;
+
+    auth.username = auth.username || auth.user;
+    auth.password = auth.password || auth.pass;
+
+    if (auth.username) {
+        url += auth.username;
+        if (auth.password)
+            url += ":" + auth.password;
         url += "@";
     }
-    return url + config.host + ":" + config.port;
+    return url + options.host + ":" + options.port;
 }
 
 /**
@@ -28,53 +37,61 @@ class Mail {
     /**
      * Creates a new email with a specified subject.
      * 
-     * @param {String} subject Email subject, optionally you can ignore this 
-     *  argument, just set the `config`, and set the subject in the config.
+     * @param {string} subject Email subject, optionally you can ignore this 
+     *  argument, just set the `options`, and set the subject in the options.
      * 
-     * @param {Object} config Transport configurations for Nodemailer, may 
+     * @param {object} options Transport configurations for Nodemailer, may 
      *  carry a `from` property sets the from address, and a `to` property 
      *  sets a receiver or receivers, and an optional `subject` if you don't 
      *  pass it as an argument.
      */
-    constructor(subject, config = null) {
+    constructor(subject, options = null) {
         if (typeof subject === "object") {
-            config = subject;
-            subject = config.subject;
+            options = subject;
+            subject = options.subject;
         }
-        config = Object.assign(Config, config);
-        if (config.pool) {
-            var url = getUrl(config);
-            if (!Pool[url]) {
-                Pool[url] = Nodemailer.createTransport(config);
+
+        options = Object.assign({}, TransportOptions, options);
+        options.auth.user = options.auth.user || options.auth.username;
+        options.auth.pass = options.auth.user || options.auth.password;
+
+        if (options.pool) {
+            var url = getUrl(options),
+                Class = this.constructor;
+            if (!Class.pool[url]) {
+                Class.pool[url] = Nodemailer.createTransport(options);
             }
-            this.transporter = Pool[url];
+            this.transporter = Class.pool[url];
         } else {
-            this.transporter = Nodemailer.createTransport(config);
+            this.transporter = Nodemailer.createTransport(options);
         }
+
         this.message = {
             subject,
-            from: config.from || config.auth.user,
+            from: options.from || options.auth.username,
             to: [],
             cc: [],
             bcc: [],
             text: "",
             html: "",
+            headers: options.headers,
             attchments: [],
         };
-        if (config.to instanceof Array) {
-            this.message.to = config.to;
-        } else if (typeof config.to === "string") {
-            this.message.to = [config.to];
+
+        if (options.to instanceof Array) {
+            this.message.to = options.to;
+        } else if (typeof options.to === "string") {
+            this.message.to = [options.to];
         }
     }
 
     /**
      * Sets the sender address.
      * 
-     * @param  {String}  address  An email address, optionally you can set a 
+     * @param  {string}  address  An email address, optionally you can set a 
      *  name before the actual address.
      * 
-     * @return {Mail}
+     * @return {this}
      */
     from(address) {
         this.message.from = address;
@@ -85,10 +102,10 @@ class Mail {
      * Sets receiver addresses, optionally you can call this method multiple 
      * times to concatenate addresses.
      * 
-     * @param {String|Array} address A list of email addresses, each one passed 
+     * @param {string[]} address A list of email addresses, each one passed 
      *  as an parameter, or just pass the fist parameter as an array.
      * 
-     * @return {Mail}
+     * @return {this}
      */
     to(...address) {
         if (address[0] instanceof Array)
@@ -101,10 +118,10 @@ class Mail {
      * Sets receiver addresses on the CC field, optionally you can call this 
      * method multiple times to concatenate addresses.
      * 
-     * @param {String|Array} address A list of email addresses, each one passed 
+     * @param {string[]} address A list of email addresses, each one passed 
      *  as an parameter, or just pass the fist parameter as an array.
      * 
-     * @return {Mail}
+     * @return {this}
      */
     cc(...address) {
         if (address[0] instanceof Array)
@@ -117,10 +134,10 @@ class Mail {
      * Sets receiver addresses on the BCC field, optionally you can call this 
      * method multiple times to concatenate addresses.
      * 
-     * @param {String|Array} address A list of email addresses, each one passed 
+     * @param {string[]} address A list of email addresses, each one passed 
      *  as an parameter, or just pass the fist parameter as an array. 
      * 
-     * @return {Mail}
+     * @return {this}
      */
     bcc(...address) {
         if (address[0] instanceof Array)
@@ -132,9 +149,9 @@ class Mail {
     /**
      * Sets the plain text version of the email.
      * 
-     * @param  {String}  content  The text content.
+     * @param  {string}  content  The text content.
      * 
-     * @return {Mail}
+     * @return {this}
      */
     text(content) {
         this.message.text = content;
@@ -144,9 +161,9 @@ class Mail {
     /**
      * Sets the HTML version of the email.
      * 
-     * @param  {String}  content  The HTML content.
+     * @param  {string}  content  The HTML content.
      * 
-     * @return {Mail}
+     * @return {this}
      */
     html(content) {
         this.message.html = content;
@@ -157,12 +174,25 @@ class Mail {
      * Sets a file as an attachment sent with the email, optionally you can 
      * call this method multiple times to attach multiple files.
      * 
-     * @param  {String}  filename  The filename you want to attach.
+     * @param  {string}  filename  The filename you want to attach.
      * 
-     * @return {Mail}
+     * @return {this}
      */
     attchment(filename) {
         this.message.attachments.push({ path: filename });
+        return this;
+    }
+
+    /**
+     * Sets a header field sent with the email, optionally you can call this 
+     * method multiple times to set multiple fields.
+     * 
+     * @param  {string}  field
+     * @param  {string|number|Date} value
+     * @return {this}
+     */
+    header(field, value) {
+        this.message.headers[field] = value;
         return this;
     }
 
@@ -191,12 +221,14 @@ class Mail {
     /**
      * Initiates email transport configurations.
      * 
-     * @param {Object} config Transport configurations for Nodemailer, may 
+     * @param {object} options Transport configurations for Nodemailer, may 
      *  carry a `from` property sets the default from address.
      */
-    static init(config) {
-        Config = Object.assign(Config, config);
+    static init(options) {
+        TransportOptions = Object.assign(TransportOptions, options);
     }
 }
 
-module.exports = Mail;
+Mail.pool = {};
+
+exports = Mail;

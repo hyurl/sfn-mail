@@ -5,8 +5,8 @@ Mail.init({
     port: 25,
     from: "xxxxxxxx@qq.com",
     auth: {
-        user: "xxxxxxxx@qq.com",
-        pass: "xxxxxxxx",
+        username: "xxxxxxxx@qq.com",
+        password: "xxxxxxxx",
     }
 });
 
