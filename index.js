@@ -66,6 +66,8 @@ class Mail {
             this.transporter = Nodemailer.createTransport(options);
         }
 
+        this.options = options;
+
         this.message = {
             subject,
             from: options.from || options.auth.username,

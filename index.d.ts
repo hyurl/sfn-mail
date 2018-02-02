@@ -1,4 +1,5 @@
 declare class Mail {
+    private options: object;
     private transpoter: any;
     private message: object;
     private static pool: { [url: string]: any };
