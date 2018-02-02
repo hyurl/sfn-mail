@@ -231,4 +231,4 @@ class Mail {
 
 Mail.pool = {};
 
-exports = Mail;
+module.exports = Mail;
