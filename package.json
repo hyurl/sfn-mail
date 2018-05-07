@@ -8,7 +8,7 @@
         "node": ">=6.0"
     },
     "scripts": {
-        "test": "node test"
+        "test": "mocha"
     },
     "keywords": [
         "email",
