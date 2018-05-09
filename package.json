@@ -1,6 +1,6 @@
 {
     "name": "sfn-mail",
-    "version": "0.2.0",
+    "version": "0.2.1",
     "description": "Simple Friendly Node.js Email client for sending messages.",
     "main": "dist/index.js",
     "types": "src/index.ts",
@@ -29,7 +29,9 @@
     },
     "license": "MIT",
     "dependencies": {
+        "@types/lodash": "^4.14.108",
         "@types/nodemailer": "^4.6.0",
+        "lodash": "^4.17.10",
         "nodemailer": "^4.6.4"
     },
     "devDependencies": {

@@ -8,6 +8,7 @@ describe("Mail.init(options: Mail.Options)", () => {
         host: "smtp.example.com",
         port: 25,
         from: "test@example.com",
+        to: "i@hyurl.com",
         auth: {
             username: "test@example.com",
             password: "mypassword",
@@ -18,16 +19,25 @@ describe("Mail.init(options: Mail.Options)", () => {
         assert.deepStrictEqual(Mail.Options, {
             host: "smtp.example.com",
             port: 25,
-            subject: "",
-            from: "test@example.com",
-            headers: [],
             secure: false,
             pool: false,
             auth: {
                 username: "test@example.com",
                 password: "mypassword"
             }
-        })
+        });
+
+        assert.deepStrictEqual(Mail.Message, {
+            subject: "",
+            from: "test@example.com",
+            to: "i@hyurl.com",
+            cc: [],
+            bcc: [],
+            text: "",
+            html: "",
+            headers: [],
+            attachments: [],
+        });
     });
 })
 
@@ -36,29 +46,29 @@ describe("new Mail(subject: string, options: Mail.Options)", () => {
         let mail = new Mail("Test Email", {
             from: "Tester <test@example.com>"
         });
+
         assert.deepStrictEqual(mail.options, {
             host: "smtp.example.com",
             port: 25,
             secure: false,
             pool: false,
-            subject: "Test Email",
-            from: "Tester <test@example.com>",
-            headers: [],
             auth: {
                 username: "test@example.com",
                 password: "mypassword",
             },
         });
+
         assert.deepStrictEqual(mail.message, {
             attachments: [],
             bcc: [],
             cc: [],
+            subject: "Test Email",
             from: "Tester <test@example.com>",
             headers: [],
             html: "",
             subject: "Test Email",
             text: "",
-            to: []
+            to: "i@hyurl.com",
         });
     });
 });
@@ -66,29 +76,28 @@ describe("new Mail(subject: string, options: Mail.Options)", () => {
 describe("new Mail(options: Mail.Options)", () => {
     it("should create instance as expected", () => {
         let mail = new Mail({ subject: "Test Email" });
+
         assert.deepStrictEqual(mail.options, {
             host: "smtp.example.com",
             port: 25,
             secure: false,
             pool: false,
-            subject: "Test Email",
-            from: "test@example.com",
-            headers: [],
             auth: {
                 username: "test@example.com",
                 password: "mypassword",
             },
         });
+
         assert.deepStrictEqual(mail.message, {
             attachments: [],
             bcc: [],
             cc: [],
+            subject: "Test Email",
             from: "test@example.com",
             headers: [],
             html: "",
-            subject: "Test Email",
             text: "",
-            to: []
+            to: "i@hyurl.com",
         });
     });
 });
@@ -108,6 +117,7 @@ describe("Mail.prototype.to()", () => {
         it("should set addresses as expected", () => {
             mail.to("example1@gmail.com", "example2@gmail.com");
             assert.deepStrictEqual(mail.message.to, [
+                "i@hyurl.com",
                 "example1@gmail.com",
                 "example2@gmail.com"
             ]);
@@ -118,6 +128,7 @@ describe("Mail.prototype.to()", () => {
         it("should set addresses as expected", () => {
             mail.to(["example3@gmail.com", "example4@gmail.com"]);
             assert.deepStrictEqual(mail.message.to, [
+                "i@hyurl.com",
                 "example1@gmail.com",
                 "example2@gmail.com",
                 "example3@gmail.com",
@@ -255,9 +266,12 @@ describe("Mail.prototype.send()", function () {
                     };
 
                     assert.deepEqual(expected, {
-                        accepted: ["ayon@hyurl.com"],
+                        accepted: ["i@hyurl.com", "ayon@hyurl.com"],
                         rejected: [],
-                        envelope: { from: account.user, to: ["ayon@hyurl.com"] },
+                        envelope: {
+                            from: account.user,
+                            to: ["i@hyurl.com", "ayon@hyurl.com"]
+                        },
                     });
 
                     done();
@@ -291,9 +305,12 @@ describe("Mail.prototype.send()", function () {
                     };
 
                     assert.deepEqual(expected, {
-                        accepted: ["ayon@hyurl.com"],
+                        accepted: ["i@hyurl.com", "ayon@hyurl.com"],
                         rejected: [],
-                        envelope: { from: account.user, to: ["ayon@hyurl.com"] },
+                        envelope: {
+                            from: account.user,
+                            to: ["i@hyurl.com", "ayon@hyurl.com"]
+                        },
                     });
 
                     done();

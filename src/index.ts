@@ -1,20 +1,32 @@
 import * as NodeMailer from "nodemailer";
 import * as tls from "tls";
+import cloneDeep = require("lodash/cloneDeep");
 
 namespace Mail {
+    export interface Message {
+        subject?: string,
+        from?: string,
+        to?: string | string[],
+        cc?: string | string[],
+        bcc?: string | string[],
+        /** Text version of email contents. */
+        text?: string,
+        /** HTML version of email contents. */
+        html?: string,
+        /** initiates headers sent along with the e-mail contents. */
+        headers?: Array<{ key: string; value: string }>,
+        attachments?: Array<{ path: string }>,
+    }
+
     export interface Options {
         /** the hostname or IP address to connect to (defaults to ‘localhost’) */
         host?: string;
         /** the port to connect to (defaults to 25 or 465) */
         port?: number;
-        subject?: string,
-        from?: string,
         auth?: {
             username: string,
             password: string
         },
-        /** initiates headers sent along with the e-mail contents. */
-        headers?: Array<{ key: string; value: string }>;
         /** defines if the connection should use SSL (if true) or not (if false) */
         secure?: boolean;
         /** turns off STARTTLS support if true */
@@ -49,24 +61,11 @@ namespace Mail {
 class Mail {
     private options: Mail.Options;
     private transporter: NodeMailer.Transporter;
-    private message: {
-        subject: string,
-        from: string,
-        to: string[],
-        cc: string[],
-        bcc: string[],
-        text: string,
-        html: string,
-        headers: Mail.Options["headers"],
-        attachments: Array<{ path: string }>,
-    };
+    private message: Mail.Message;
 
     static Options: Mail.Options = {
         host: "",
         port: 25,
-        subject: "",
-        from: "",
-        headers: [],
         secure: false,
         pool: false,
         auth: {
@@ -74,16 +73,33 @@ class Mail {
             password: ""
         }
     };
+    static Message: Mail.Message = {
+        subject: "",
+        from: "",
+        to: [],
+        cc: [],
+        bcc: [],
+        text: "",
+        html: "",
+        headers: [],
+        attachments: [],
+    };
 
-    static init(options: Mail.Options): void {
-        Mail.Options = Object.assign(Mail.Options, options);
+    static init(options: Mail.Options & Mail.Message): void {
+        for (let x in options) {
+            if (Mail.Message.hasOwnProperty(x)) {
+                Mail.Message[x] = options[x];
+            } else {
+                Mail.Options[x] = options[x];
+            }
+        }
     }
 
-    constructor(options: Mail.Options);
+    constructor(options: Mail.Options & Mail.Message);
     /** Creates a new email with a specified subject. */
-    constructor(subject: string, options?: Mail.Options);
+    constructor(subject: string, options?: Mail.Options & Mail.Message);
 
-    constructor(subject, options: Mail.Options = {}) {
+    constructor(subject, options: Mail.Options & Mail.Message = {}) {
         if (typeof subject === "object") {
             options = subject;
             subject = options.subject;
@@ -98,31 +114,45 @@ class Mail {
                 options.auth.username = options.auth["password"];
         }
 
-        this.options = Object.assign({}, Mail.Options, options);
-        this.message = {
-            subject,
-            from: this.options.from || this.options.auth.username,
-            to: [],
-            cc: [],
-            bcc: [],
-            text: "",
-            html: "",
-            headers: this.options.headers,
-            attachments: [],
-        };
+        this.options = cloneDeep(Mail.Options);
+        this.message = cloneDeep(Mail.Message);
+
+        for (let x in options) {
+            if (Mail.Message.hasOwnProperty(x)) {
+                this.message[x] = options[x];
+            } else {
+                this.options[x] = options[x];
+            }
+        }
 
         let _options = Object.assign({}, this.options, {
             auth: {
-                user: this.options.auth.username,
-                pass: this.options.auth.password
+                user: this.options.auth.username || this.options["user"],
+                pass: this.options.auth.password || this.options["pass"]
             }
         });
+
         this.transporter = NodeMailer.createTransport(_options);
     }
 
     /** Sets the sender address. */
     from(address: string): this {
-        this.message.from = this.options.from = address;
+        this.message.from = address;
+        return this;
+    }
+
+    private setReceiver(type: string, ...addresses): this {
+        if (addresses[0] instanceof Array)
+            addresses = addresses[0];
+
+        if (typeof this.message[type] == "string") {
+            if (this.message[type])
+                this.message[type] = [this.message[type]];
+            else
+                this.message[type] = [];
+        }
+
+        this.message[type] = this.message[type].concat(addresses);
         return this;
     }
 
@@ -133,11 +163,7 @@ class Mail {
     to(...addresses: string[]): this;
     to(addresses: string[]): this;
     to(...addresses) {
-        if (addresses[0] instanceof Array)
-            addresses = addresses[0];
-
-        this.message.to = this.message.to.concat(addresses);
-        return this;
+        return this.setReceiver("to", ...addresses);
     }
 
     /**
@@ -147,11 +173,7 @@ class Mail {
     cc(...addresses: string[]): this;
     cc(addresses: string[]): this;
     cc(...addresses) {
-        if (addresses[0] instanceof Array)
-            addresses = addresses[0];
-
-        this.message.cc = this.message.cc.concat(addresses);
-        return this;
+        return this.setReceiver("cc", ...addresses);
     }
 
     /**
@@ -161,11 +183,7 @@ class Mail {
     bcc(...addresses: string[]): this;
     bcc(addresses: string[]): this;
     bcc(...addresses) {
-        if (addresses[0] instanceof Array)
-            addresses = addresses[0];
-
-        this.message.bcc = this.message.bcc.concat(addresses);
-        return this;
+        return this.setReceiver("bcc", ...addresses);
     }
 
     /** Sets the plain text version of the email. */
